@@ -115,6 +115,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--allowed", required=True)
     ap.add_argument("--refs-dir", required=True)
+    ap.add_argument("--allow-dir", default="")
     ap.add_argument("--existing", required=True)
     ap.add_argument("--out-blocklist", required=True)
     ap.add_argument("--out-report", required=True)
@@ -124,10 +125,17 @@ def main() -> int:
     allowed = load_allowed(args.allowed)
     existing = load_existing(args.existing)
     refs = load_refs(args.refs_dir)
+    allowlists = load_refs(args.allow_dir) if args.allow_dir else {}
+    # Flatten allowlists into one set for cheap lookup
+    allow_union: set[str] = set()
+    for s in allowlists.values():
+        allow_union.update(s)
     print(f"allowed domains: {len(allowed)}", file=sys.stderr)
     print(f"already in blocklist.txt: {len(existing)}", file=sys.stderr)
     for name, s in refs.items():
         print(f"  ref {name}: {len(s)}", file=sys.stderr)
+    for name, s in allowlists.items():
+        print(f"  allow {name}: {len(s)}", file=sys.stderr)
 
     # Per-domain match
     raw_matches: list[dict] = []
@@ -158,6 +166,7 @@ def main() -> int:
             if key not in collapsed:
                 collapsed[key] = {
                     "entry": m["domain"],
+                    "block_domain": m["domain"],
                     "match_type": "exact",
                     "source": m["source"],
                     "hits": m["hits"],
@@ -172,6 +181,7 @@ def main() -> int:
             if key not in collapsed:
                 collapsed[key] = {
                     "entry": f"||{m['matched_as']}^",
+                    "block_domain": m["matched_as"],
                     "match_type": "wildcard",
                     "source": m["source"],
                     "hits": m["hits"],
@@ -183,6 +193,19 @@ def main() -> int:
                 collapsed[key]["n_subdomains"] += 1
                 if len(collapsed[key]["examples"]) < 3:
                     collapsed[key]["examples"].append(m["domain"])
+
+    # Annotate each candidate with any allowlist match on the domain being
+    # blocked (or any parent of it).
+    for c in collapsed.values():
+        d = c["block_domain"]
+        allow_hits: list[tuple[str, str]] = []
+        parts = d.split(".")
+        for i in range(len(parts) - 1):
+            cur = ".".join(parts[i:])
+            for name, s in allowlists.items():
+                if cur in s:
+                    allow_hits.append((name, cur))
+        c["allow_hits"] = allow_hits
 
     candidates = sorted(collapsed.values(), key=lambda c: -c["hits"])
 
@@ -196,6 +219,9 @@ def main() -> int:
                     f"{c['hits']} hits across {c['n_subdomains']} subdomains, "
                     f"{c['source']} wildcard — e.g. {c['examples'][0]}"
                 )
+            if c["allow_hits"]:
+                names = ",".join(sorted({n for n, _ in c["allow_hits"]}))
+                tag = f"REVIEW ({names}) — {tag}"
             f.write(f"{c['entry']}    # {tag}\n")
 
     by_source: dict[str, list[dict]] = defaultdict(list)
@@ -207,17 +233,29 @@ def main() -> int:
         f.write(f"# Monthly blocklist eval — {today}\n\n")
         f.write(f"- Allowed domains (30d): {len(allowed)}\n")
         f.write(f"- Already blocked by this list: {len(existing)}\n")
-        f.write(f"- New candidates: **{len(candidates)}**\n\n")
+        flagged = [c for c in candidates if c["allow_hits"]]
+        f.write(f"- New candidates: **{len(candidates)}**\n")
+        f.write(f"- Of those, flagged by an allowlist (review carefully): **{len(flagged)}**\n\n")
         if not candidates:
             f.write("No new candidates this month.\n")
             return 0
+        if flagged:
+            f.write("## ⚠ Allowlist-flagged — review before merging\n\n")
+            f.write("These matched a reference allowlist and may break something if blocked.\n\n")
+            f.write("| Entry | Hits | Flagged by | Example |\n")
+            f.write("|---|---:|---|---|\n")
+            for c in flagged:
+                names = ",".join(sorted({n for n, _ in c["allow_hits"]}))
+                f.write(f"| `{c['entry']}` | {c['hits']} | {names} | `{c['examples'][0]}` |\n")
+            f.write("\n")
         f.write("## Top 25 by hits\n\n")
-        f.write("| Entry | Hits | Subdomains | Via | Type | Example |\n")
-        f.write("|---|---:|---:|---|---|---|\n")
+        f.write("| Entry | Hits | Subdomains | Via | Type | Example | Flag |\n")
+        f.write("|---|---:|---:|---|---|---|---|\n")
         for c in candidates[:25]:
             ex = c["examples"][0]
+            flag = "⚠" if c["allow_hits"] else ""
             f.write(
-                f"| `{c['entry']}` | {c['hits']} | {c['n_subdomains']} | {c['source']} | {c['match_type']} | `{ex}` |\n"
+                f"| `{c['entry']}` | {c['hits']} | {c['n_subdomains']} | {c['source']} | {c['match_type']} | `{ex}` | {flag} |\n"
             )
         f.write("\n")
         f.write("## By reference source\n\n")

@@ -24,20 +24,28 @@ echo "[1/5] fetching 30-day allowed queries from $LC3_SSH_HOST"
 ssh -o BatchMode=yes "$LC3_SSH_HOST" > "$WORK/allowed.csv"
 wc -l "$WORK/allowed.csv"
 
-echo "[2/5] downloading reference blocklists"
-mkdir -p "$WORK/refs"
-i=0
-while IFS= read -r url; do
-  case "$url" in ''|\#*) continue;; esac
-  i=$((i+1))
-  echo "  - $url"
-  curl -fsSL --max-time 60 -o "$WORK/refs/ref-$i.raw" "$url"
-done < "$REPO_ROOT/sources.txt"
+echo "[2/5] downloading reference blocklists + allowlists"
+mkdir -p "$WORK/refs" "$WORK/allow"
+fetch_list() {
+  local src=$1 dest=$2
+  local i=0
+  while IFS= read -r url; do
+    case "$url" in ''|\#*) continue;; esac
+    i=$((i+1))
+    echo "  - $url"
+    curl -fsSL --max-time 60 -o "$dest/list-$i.raw" "$url"
+  done < "$src"
+}
+fetch_list "$REPO_ROOT/sources.txt"    "$WORK/refs"
+if [ -f "$REPO_ROOT/allowlists.txt" ]; then
+  fetch_list "$REPO_ROOT/allowlists.txt" "$WORK/allow"
+fi
 
 echo "[3/5] normalizing + ranking candidates"
 python3 "$REPO_ROOT/scripts/rank.py" \
   --allowed "$WORK/allowed.csv" \
   --refs-dir "$WORK/refs" \
+  --allow-dir "$WORK/allow" \
   --existing "$REPO_ROOT/blocklist.txt" \
   --out-blocklist "$WORK/new-additions.txt" \
   --out-report   "$WORK/report.md"
