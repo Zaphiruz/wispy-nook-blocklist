@@ -1,0 +1,48 @@
+name: monthly-eval
+
+on:
+  schedule:
+    # 06:00 UTC on the 1st of each month
+    - cron: '0 6 1 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  eval:
+    runs-on: [self-hosted, blocklist]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run eval
+        id: eval
+        run: bash scripts/eval.sh
+
+      - name: Open PR if candidates
+        if: steps.eval.outputs.NEW_COUNT != '0' && steps.eval.outputs.NEW_COUNT != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEW_COUNT: ${{ steps.eval.outputs.NEW_COUNT }}
+          MONTH: ${{ steps.eval.outputs.MONTH }}
+        run: |
+          set -euo pipefail
+          BRANCH="eval/${MONTH}"
+          git config user.name  "blocklist-bot"
+          git config user.email "blocklist-bot@users.noreply.github.com"
+          # If a branch for this month already exists remotely, overwrite it
+          git checkout -b "$BRANCH"
+          git add blocklist.txt "reports/${MONTH}.md"
+          git commit -m "eval(${MONTH}): propose ${NEW_COUNT} candidates"
+          git push --force-with-lease origin "$BRANCH"
+          # Open PR (or no-op if one already exists for this branch)
+          if ! gh pr view "$BRANCH" >/dev/null 2>&1; then
+            gh pr create \
+              --base main \
+              --head "$BRANCH" \
+              --title "Monthly blocklist eval ${MONTH}: ${NEW_COUNT} candidates" \
+              --body-file "reports/${MONTH}.md"
+          else
+            gh pr edit "$BRANCH" --body-file "reports/${MONTH}.md"
+          fi

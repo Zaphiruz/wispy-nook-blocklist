@@ -1,0 +1,3 @@
+# wispy-nook-blocklist — extra domains for Pi-hole to block.
+# Each entry below was added via a reviewed PR from the monthly eval.
+# Format: one domain per line; trailing `# note` comments allowed.

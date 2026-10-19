@@ -1,0 +1,10 @@
+# Reference blocklists cross-referenced during the monthly eval.
+# One URL per line. Any format: wildcard (*.d.com), hosts (0.0.0.0 d.com,
+# 127.0.0.1 d.com), adblock (||d.com^), or plain-domain. Comments (# !) ignored.
+#
+# Pick lists whose coverage differs from what Pi-hole already uses, so hits
+# represent gaps rather than duplicates.
+https://big.oisd.nl/domainswild
+https://o0.pages.dev/Lite/wildcards.txt
+https://pgl.yoyo.org/adservers/serverlist.php?hostformat=nohtml&showintro=0&mimetype=plaintext
+https://adguardteam.github.io/HostlistsRegistry/assets/filter_2.txt
