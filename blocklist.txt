@@ -1,3 +1,45 @@
 # wispy-nook-blocklist — extra domains for Pi-hole to block.
 # Each entry below was added via a reviewed PR from the monthly eval.
 # Format: one domain per line; trailing `# note` comments allowed.
+
+# ---- Proposed 2026-10 ----
+sdk.split.io    # 10261 hits, list-4.raw exact
+xp.atlassian.com    # 243 hits, list-1.raw exact
+||eloqua.com^    # 65 hits across 1 subdomains, list-2.raw wildcard — e.g. s413370795.t.eloqua.com
+doppler.hulu.com    # 58 hits, list-1.raw exact
+||html-load.com^    # 56 hits across 23 subdomains, list-1.raw wildcard — e.g. fb.html-load.com
+gx-target-experiments-frontend-api.gx.nvidia.com    # 53 hits, list-1.raw exact
+||ughapud.com^    # 44 hits across 12 subdomains, list-1.raw wildcard — e.g. wear.ughapud.com
+||amazon-adsystem.com^    # 38 hits across 4 subdomains, list-3.raw wildcard — e.g. aax-events-cell02-cf.us-east.3px.axp.amazon-adsystem.com
+||kochava.com^    # 24 hits across 2 subdomains, list-4.raw wildcard — e.g. restricted.sdk.kochava.com
+||sansyettusk.com^    # 24 hits across 12 subdomains, list-1.raw wildcard — e.g. taro.sansyettusk.com
+||appsflyer.com^    # 18 hits across 1 subdomains, list-3.raw wildcard — e.g. engagements.appsflyer.com
+||marketingcloudapis.com^    # 18 hits across 4 subdomains, list-3.raw wildcard — e.g. mc656xjxw5s9zlrhn6jx5z5q2zq0.device.marketingcloudapis.com
+||online-metrix.net^    # 17 hits across 2 subdomains, list-3.raw wildcard — e.g. h64.online-metrix.net
+cont-1.p-cdn.us    # 12 hits, list-1.raw exact
+t.co    # REVIEW (list-1.raw) — 11 hits, list-3.raw exact
+||wisepops.com^    # 10 hits across 2 subdomains, list-1.raw wildcard — e.g. loader.wisepops.com
+qcc.qualcomm.com    # 8 hits, list-1.raw exact
+ponos.zeronaught.com    # 8 hits, list-1.raw exact
+cdn.sift.com    # 8 hits, list-1.raw exact
+||inmobi.com^    # 6 hits across 1 subdomains, list-3.raw wildcard — e.g. cmp.inmobi.com
+jtiavpaxso.in    # 5 hits, list-1.raw exact
+||cuddlybeside.com^    # 5 hits across 1 subdomains, list-1.raw wildcard — e.g. edge.cuddlybeside.com
+tapoutmusic.com    # 4 hits, list-1.raw exact
+amspbs.com    # 4 hits, list-1.raw exact
+||iesnare.com^    # 3 hits across 1 subdomains, list-3.raw wildcard — e.g. mpsnare.iesnare.com
+imgs.signifyd.com    # 3 hits, list-1.raw exact
+api.consentjs.datagrail.io    # 3 hits, list-1.raw exact
+||omtrdc.net^    # 2 hits across 1 subdomains, list-3.raw wildcard — e.g. ups.tt.omtrdc.net
+supportmetrics.apple.com    # 2 hits, list-1.raw exact
+pl.elements.video    # 2 hits, list-1.raw exact
+||optimizely.com^    # 2 hits across 1 subdomains, list-3.raw wildcard — e.g. ohhe03mstrt31oo.dxp.optimizely.com
+||shrillyclose.com^    # 2 hits across 1 subdomains, list-1.raw wildcard — e.g. drug.shrillyclose.com
+customer.cludo.com    # 2 hits, list-4.raw exact
+||callrail.com^    # 2 hits across 1 subdomains, list-3.raw wildcard — e.g. cdn.callrail.com
+||piano.io^    # 2 hits across 1 subdomains, list-3.raw wildcard — e.g. c2.piano.io
+||xg4ken.com^    # 2 hits across 1 subdomains, list-3.raw wildcard — e.g. 2779.xg4ken.com
+||evergage.com^    # 1 hits across 1 subdomains, list-3.raw wildcard — e.g. e556555555563pj3c3c3n3n5069559480.us-5.evergage.com
+dppesulohfqre.cloudfront.net    # 1 hits, list-1.raw exact
+||micpn.com^    # 1 hits across 1 subdomains, list-4.raw wildcard — e.g. bz2x6bee.micpn.com
+||smart.link^    # 1 hits across 1 subdomains, list-4.raw wildcard — e.g. 7now.smart.link
