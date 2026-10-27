@@ -3,8 +3,6 @@
 # Format: one domain per line; trailing `# note` comments allowed.
 
 # ---- Proposed 2026-10 ----
-sdk.split.io    # 10261 hits, list-4.raw exact
-xp.atlassian.com    # 243 hits, list-1.raw exact
 ||eloqua.com^    # 65 hits across 1 subdomains, list-2.raw wildcard — e.g. s413370795.t.eloqua.com
 doppler.hulu.com    # 58 hits, list-1.raw exact
 ||html-load.com^    # 56 hits across 23 subdomains, list-1.raw wildcard — e.g. fb.html-load.com
