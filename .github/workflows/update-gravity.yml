@@ -1,0 +1,23 @@
+name: update-gravity
+
+# Fires whenever blocklist.txt changes on main (typically a monthly-eval PR
+# merge). SSHes to LC3 as blocklist-eval and asks the forced-command dispatcher
+# to run `pihole -g`, so Pi-hole picks up the new entries without waiting for
+# its own weekly gravity rebuild.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - blocklist.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: [self-hosted, blocklist]
+    steps:
+      - name: pihole -g on LC3
+        run: ssh -o BatchMode=yes lc3-blocklist gravity
