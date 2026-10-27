@@ -2,14 +2,17 @@
 """Rank candidate domains to add to the Pi-hole blocklist.
 
 Inputs:
-  --allowed  CSV of "domain|count" from Pi-hole FTL (status 2/3/14, last 30d)
+  --allowed  CSV of "domain|home|work|dom|guest|control|vpn|gaming|total" from
+             Pi-hole FTL (status 2/3/14, last 30d), one row per domain.
   --refs-dir directory of raw reference blocklists (any format)
   --existing current blocklist.txt (comment-stripped domains are excluded)
 
 Outputs:
-  --out-blocklist newline-separated candidates sorted desc by hits, with
-                  "<domain>    # matched <ref>, N hits" annotations.
-  --out-report    markdown report with top candidates grouped by matched source.
+  --out-blocklist newline-separated candidates sorted desc by hits, each line
+                  annotated with the matched ref, total hits, and originating
+                  subnet (e.g. "work-only").
+  --out-report    markdown report with top candidates grouped by matched source
+                  and a dedicated "work-only" section (lower-risk blocks).
 """
 from __future__ import annotations
 
@@ -21,6 +24,12 @@ import sys
 from collections import defaultdict
 
 DOMAIN_RE = re.compile(r"^[a-z0-9][a-z0-9.-]*\.[a-z]{2,}$")
+
+# Subnet columns in the order emitted by LC3's pihole-export-queries.
+SUBNETS = ("home", "work", "dom", "guest", "control", "vpn", "gaming")
+# End-user subnets — the ones we care about for "who would notice if blocked".
+# Omits `dom` (local service hosts talking to each other) and `control` (mgmt).
+END_USER_SUBNETS = ("home", "work", "guest", "vpn", "gaming")
 
 
 def normalize_line(line: str) -> str | None:
@@ -79,24 +88,56 @@ def load_existing(path: str) -> set[str]:
     return out
 
 
-def load_allowed(path: str) -> list[tuple[str, int]]:
-    rows: list[tuple[str, int]] = []
+def load_allowed(path: str) -> list[dict]:
+    """Load `domain|home|work|dom|guest|control|vpn|gaming|total` rows.
+
+    Falls back to the old `domain|total` 2-column format so an older LC3
+    export doesn't fail the eval (all per-subnet counts become 0).
+    """
+    rows: list[dict] = []
     with open(path, encoding="utf-8", errors="replace") as f:
         for line in f:
             s = line.strip()
-            if not s:
+            if not s or "|" not in s:
                 continue
-            if "|" not in s:
+            parts = s.split("|")
+            domain = normalize_line(parts[0])
+            if not domain:
                 continue
-            domain, count = s.rsplit("|", 1)
-            d = normalize_line(domain)
             try:
-                n = int(count)
+                nums = [int(x) for x in parts[1:]]
             except ValueError:
                 continue
-            if d:
-                rows.append((d, n))
+            if len(nums) == len(SUBNETS) + 1:
+                counts = dict(zip(SUBNETS, nums[:-1]))
+                total = nums[-1]
+            elif len(nums) == 1:
+                counts = {s: 0 for s in SUBNETS}
+                total = nums[0]
+            else:
+                continue
+            rows.append({"domain": domain, "hits": total, "counts": counts})
     return rows
+
+
+def subnet_tag(counts: dict[str, int]) -> str:
+    """Describe who's talking to this domain. Short, for inline comments."""
+    active = [s for s in END_USER_SUBNETS if counts.get(s, 0) > 0]
+    if not active:
+        # Only infra (dom/control) saw it, or nothing — rare since we filter on
+        # total>0 upstream, so just show as "infra".
+        infra = [s for s in ("dom", "control") if counts.get(s, 0) > 0]
+        return "infra-only" if infra else "none"
+    if len(active) == 1:
+        return f"{active[0]}-only"
+    user_total = sum(counts.get(s, 0) for s in END_USER_SUBNETS)
+    if user_total == 0:
+        return "mixed"
+    dominant = max(active, key=lambda s: counts[s])
+    pct = counts[dominant] * 100 // user_total
+    if pct >= 90:
+        return f"mostly-{dominant}"
+    return "mixed"
 
 
 def match(domain: str, ref: set[str]) -> tuple[str, str] | None:
@@ -139,60 +180,65 @@ def main() -> int:
 
     # Per-domain match
     raw_matches: list[dict] = []
-    for domain, hits in allowed:
-        if hits < args.min_hits:
+    for row in allowed:
+        if row["hits"] < args.min_hits:
             continue
-        if domain in existing:
+        if row["domain"] in existing:
             continue
         for name, ref in refs.items():
-            m = match(domain, ref)
+            m = match(row["domain"], ref)
             if m:
                 matched_as, kind = m
                 raw_matches.append({
-                    "domain": domain,
-                    "hits": hits,
+                    "domain": row["domain"],
+                    "hits": row["hits"],
+                    "counts": row["counts"],
                     "matched_as": matched_as,
                     "match_type": kind,
                     "source": name,
                 })
                 break
 
+    def new_candidate(m: dict, entry: str, block_domain: str) -> dict:
+        return {
+            "entry": entry,
+            "block_domain": block_domain,
+            "match_type": m["match_type"],
+            "source": m["source"],
+            "hits": m["hits"],
+            "counts": dict(m["counts"]),
+            "n_subdomains": 1,
+            "examples": [m["domain"]],
+        }
+
     # Collapse wildcard matches to the parent domain (ABP syntax). Exact
-    # matches stay 1:1.
+    # matches stay 1:1. Subnet counts are summed across the collapsed set.
     collapsed: dict[tuple[str, str, str], dict] = {}
     for m in raw_matches:
         if m["match_type"] == "exact":
             key = ("exact", m["domain"], m["source"])
             if key not in collapsed:
-                collapsed[key] = {
-                    "entry": m["domain"],
-                    "block_domain": m["domain"],
-                    "match_type": "exact",
-                    "source": m["source"],
-                    "hits": m["hits"],
-                    "n_subdomains": 1,
-                    "examples": [m["domain"]],
-                }
+                collapsed[key] = new_candidate(m, m["domain"], m["domain"])
             else:
                 collapsed[key]["hits"] += m["hits"]
+                for s in SUBNETS:
+                    collapsed[key]["counts"][s] += m["counts"].get(s, 0)
         else:
-            # wildcard — bucket by (parent, source)
             key = ("wildcard", m["matched_as"], m["source"])
             if key not in collapsed:
-                collapsed[key] = {
-                    "entry": f"||{m['matched_as']}^",
-                    "block_domain": m["matched_as"],
-                    "match_type": "wildcard",
-                    "source": m["source"],
-                    "hits": m["hits"],
-                    "n_subdomains": 1,
-                    "examples": [m["domain"]],
-                }
+                collapsed[key] = new_candidate(
+                    m, f"||{m['matched_as']}^", m["matched_as"]
+                )
             else:
                 collapsed[key]["hits"] += m["hits"]
+                for s in SUBNETS:
+                    collapsed[key]["counts"][s] += m["counts"].get(s, 0)
                 collapsed[key]["n_subdomains"] += 1
                 if len(collapsed[key]["examples"]) < 3:
                     collapsed[key]["examples"].append(m["domain"])
+
+    for c in collapsed.values():
+        c["subnet_tag"] = subnet_tag(c["counts"])
 
     # Annotate each candidate with any allowlist match on the domain being
     # blocked (or any parent of it).
@@ -219,6 +265,7 @@ def main() -> int:
                     f"{c['hits']} hits across {c['n_subdomains']} subdomains, "
                     f"{c['source']} wildcard — e.g. {c['examples'][0]}"
                 )
+            tag = f"[{c['subnet_tag']}] {tag}"
             if c["allow_hits"]:
                 names = ",".join(sorted({n for n, _ in c["allow_hits"]}))
                 tag = f"REVIEW ({names}) — {tag}"
@@ -229,33 +276,50 @@ def main() -> int:
         by_source[c["source"]].append(c)
 
     today = datetime.date.today().isoformat()
+    work_only = [c for c in candidates if c["subnet_tag"] == "work-only"]
     with open(args.out_report, "w", encoding="utf-8") as f:
         f.write(f"# Monthly blocklist eval — {today}\n\n")
         f.write(f"- Allowed domains (30d): {len(allowed)}\n")
         f.write(f"- Already blocked by this list: {len(existing)}\n")
         flagged = [c for c in candidates if c["allow_hits"]]
         f.write(f"- New candidates: **{len(candidates)}**\n")
-        f.write(f"- Of those, flagged by an allowlist (review carefully): **{len(flagged)}**\n\n")
+        f.write(f"- Only seen on the Work subnet (lower risk): **{len(work_only)}**\n")
+        f.write(f"- Flagged by an allowlist (review carefully): **{len(flagged)}**\n\n")
         if not candidates:
             f.write("No new candidates this month.\n")
             return 0
+        if work_only:
+            f.write("## 🟢 Work-only candidates — lower risk\n\n")
+            f.write("These were only queried from the Work subnet (192.168.30.0/24). Blocking them won't affect Home/Guest/VPN/Gaming devices.\n\n")
+            f.write("| Entry | Work hits | Via | Example |\n")
+            f.write("|---|---:|---|---|\n")
+            for c in sorted(work_only, key=lambda c: -c["hits"]):
+                f.write(f"| `{c['entry']}` | {c['counts']['work']} | {c['source']} | `{c['examples'][0]}` |\n")
+            f.write("\n")
         if flagged:
             f.write("## ⚠ Allowlist-flagged — review before merging\n\n")
             f.write("These matched a reference allowlist and may break something if blocked.\n\n")
-            f.write("| Entry | Hits | Flagged by | Example |\n")
-            f.write("|---|---:|---|---|\n")
+            f.write("| Entry | Hits | Flagged by | Subnets | Example |\n")
+            f.write("|---|---:|---|---|---|\n")
             for c in flagged:
                 names = ",".join(sorted({n for n, _ in c["allow_hits"]}))
-                f.write(f"| `{c['entry']}` | {c['hits']} | {names} | `{c['examples'][0]}` |\n")
+                f.write(f"| `{c['entry']}` | {c['hits']} | {names} | {c['subnet_tag']} | `{c['examples'][0]}` |\n")
             f.write("\n")
         f.write("## Top 25 by hits\n\n")
-        f.write("| Entry | Hits | Subdomains | Via | Type | Example | Flag |\n")
-        f.write("|---|---:|---:|---|---|---|---|\n")
+        f.write("| Entry | Hits | Subnets | home | work | guest | vpn | Via | Example | Flags |\n")
+        f.write("|---|---:|---|---:|---:|---:|---:|---|---|---|\n")
         for c in candidates[:25]:
             ex = c["examples"][0]
-            flag = "⚠" if c["allow_hits"] else ""
+            cc = c["counts"]
+            flags = []
+            if c["subnet_tag"] == "work-only":
+                flags.append("🟢work")
+            if c["allow_hits"]:
+                flags.append("⚠fp")
             f.write(
-                f"| `{c['entry']}` | {c['hits']} | {c['n_subdomains']} | {c['source']} | {c['match_type']} | `{ex}` | {flag} |\n"
+                f"| `{c['entry']}` | {c['hits']} | {c['subnet_tag']} | "
+                f"{cc['home']} | {cc['work']} | {cc['guest']} | {cc['vpn']} | "
+                f"{c['source']} | `{ex}` | {' '.join(flags)} |\n"
             )
         f.write("\n")
         f.write("## By reference source\n\n")
