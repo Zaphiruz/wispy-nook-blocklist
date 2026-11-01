@@ -41,3 +41,33 @@ customer.cludo.com    # 2 hits, list-4.raw exact
 dppesulohfqre.cloudfront.net    # 1 hits, list-1.raw exact
 ||micpn.com^    # 1 hits across 1 subdomains, list-4.raw wildcard — e.g. bz2x6bee.micpn.com
 ||smart.link^    # 1 hits across 1 subdomains, list-4.raw wildcard — e.g. 7now.smart.link
+
+# ---- Proposed 2026-11 ----
+sdk.split.io    # [mostly-work] 8118 hits, list-4.raw exact
+xp.atlassian.com    # [work-only] 256 hits, list-1.raw exact
+cdn-settings.af-sdk.com    # [home-only] 133 hits, list-1.raw exact
+||ughapud.com^    # [home-only] 44 hits across 12 subdomains, list-1.raw wildcard — e.g. wear.ughapud.com
+||amazon-adsystem.com^    # [mixed] 38 hits across 4 subdomains, list-3.raw wildcard — e.g. aax-events-cell02-cf.us-east.3px.axp.amazon-adsystem.com
+||sansyettusk.com^    # [home-only] 24 hits across 12 subdomains, list-1.raw wildcard — e.g. taro.sansyettusk.com
+||kochava.com^    # [home-only] 20 hits across 2 subdomains, list-4.raw wildcard — e.g. restricted.sdk.kochava.com
+||eloqua.com^    # [work-only] 19 hits across 1 subdomains, list-2.raw wildcard — e.g. s413370795.t.eloqua.com
+||appsflyer.com^    # [guest-only] 18 hits across 1 subdomains, list-3.raw wildcard — e.g. engagements.appsflyer.com
+||html-load.com^    # [home-only] 12 hits across 12 subdomains, list-1.raw wildcard — e.g. yahoo-homepage.html-load.com
+||marketingcloudapis.com^    # [home-only] 11 hits across 4 subdomains, list-3.raw wildcard — e.g. mc656xjxw5s9zlrhn6jx5z5q2zq0.device.marketingcloudapis.com
+||online-metrix.net^    # [home-only] 8 hits across 2 subdomains, list-3.raw wildcard — e.g. h64.online-metrix.net
+||wisepops.com^    # [home-only] 8 hits across 2 subdomains, list-1.raw wildcard — e.g. loader.wisepops.com
+mssdk.tiktokw.us    # [home-only] 3 hits, list-1.raw exact
+||iesnare.com^    # [home-only] 3 hits across 1 subdomains, list-3.raw wildcard — e.g. mpsnare.iesnare.com
+t.castle.io    # [work-only] 2 hits, list-1.raw exact
+production-cmp.isgprivacy.cbsi.com    # [home-only] 2 hits, list-4.raw exact
+||optimizely.com^    # [home-only] 2 hits across 1 subdomains, list-3.raw wildcard — e.g. ohhe03mstrt31oo.dxp.optimizely.com
+||veta.naver.com^    # [home-only] 2 hits across 1 subdomains, list-1.raw wildcard — e.g. nam.veta.naver.com
+||kampyle.com^    # [home-only] 2 hits across 1 subdomains, list-4.raw wildcard — e.g. md-scp.kampyle.com
+||shrillyclose.com^    # [home-only] 2 hits across 1 subdomains, list-1.raw wildcard — e.g. drug.shrillyclose.com
+||piano.io^    # [home-only] 2 hits across 1 subdomains, list-3.raw wildcard — e.g. c2.piano.io
+inapps.af-sdk.com    # [home-only] 1 hits, list-1.raw exact
+||loopme.com^    # [home-only] 1 hits across 1 subdomains, list-3.raw wildcard — e.g. gdpr.loopme.com
+||evergage.com^    # [home-only] 1 hits across 1 subdomains, list-3.raw wildcard — e.g. e556555555563pj3c3c3n3n5069559480.us-5.evergage.com
+||micpn.com^    # [home-only] 1 hits across 1 subdomains, list-4.raw wildcard — e.g. bz2x6bee.micpn.com
+bam.nr-data.net    # [home-only] 1 hits, list-1.raw exact
+||smart.link^    # [home-only] 1 hits across 1 subdomains, list-4.raw wildcard — e.g. 7now.smart.link
